@@ -1,0 +1,45 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    RED.nodes.registerType("redkern-redis-subscribe", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-subscribe.svg",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            mode: { value: "subscribe" },
+            channels: { value: "", required: true, validate: function (value) { return String(value || "").split(",").some(function (item) { return item.trim() !== ""; }); } }
+        },
+        inputs: 0,
+        outputs: 1,
+        paletteLabel: function () { return this._("subscribe.paletteLabel"); },
+        label: function () { return this.name || this.channels || this._("subscribe.default"); },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        outputLabels: function () { return this._("subscribe.ports.message"); }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-subscribe">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-channels"><i class="fa fa-rss"></i> <span data-i18n="subscribe.label.channels"></span></label>
+        <input type="text" id="node-input-channels" data-i18n="[placeholder]subscribe.placeholder.channels">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mode"><i class="fa fa-random"></i> <span data-i18n="subscribe.label.mode"></span></label>
+        <select id="node-input-mode" style="width: 70%;">
+            <option value="subscribe" data-i18n="subscribe.mode.subscribe"></option>
+            <option value="psubscribe" data-i18n="subscribe.mode.psubscribe"></option>
+        </select>
+    </div>
+    <div class="form-tips"><span data-i18n="subscribe.tip.subscribe"></span></div>
+</script>

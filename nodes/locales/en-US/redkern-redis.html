@@ -1,0 +1,299 @@
+<script type="text/html" data-help-name="redkern-redis-config">
+<p>Connection to a standalone Redis or a Redis Cluster, shared by the nodes that use it.</p>
+<h3>Details</h3>
+<p>Each config node opens at most one shared connection (auto-pipelined, no offline queue), one subscriber connection when Pub/Sub nodes use it, and one blocking connection per stream in and list in node. The formula and the live numbers are in the Reliability tab and in <code>redkern_redis_connections{role}</code>.</p>
+<p>Host, port, username and timeouts can be <code>${VAR}</code>: the value comes from the environment while the flow in Git shows its source. The password is a credential and never leaves the runtime.</p>
+<p>In cluster mode the database is always 0, and a stream with a DLQ must share a hash tag with it, for example <code>orders:{eu}</code> and <code>orders:{eu}:dlq</code>.</p>
+<p>TLS always verifies the server certificate. A private CA is added with <code>NODE_EXTRA_CA_CERTS</code>; set TLS server name when the certificate is issued for another name than the host. A rejected certificate gives a red status.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#config" target="_blank" rel="noopener noreferrer">README: config</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-command">
+<p>Runs one Redis command on the shared connection.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt class="optional">args <span class="property-type">array</span></dt>
+    <dd>Command arguments, for example <code>["user:1", "name"]</code>.</dd>
+    <dt class="optional">command <span class="property-type">string | array</span></dt>
+    <dd>Replaces the configured command when "Allow msg.command" is on.</dd>
+</dl>
+<h3>Outputs</h3>
+<ol class="node-ports">
+<li>Result
+<dl class="message-properties">
+    <dt>payload <span class="property-type">any</span></dt>
+    <dd>Redis reply.</dd>
+    <dt>redkern.redis <span class="property-type">object</span></dt>
+    <dd>Palette metadata. Other palettes keep their own keys under msg.redkern.</dd>
+</dl>
+</li>
+<li>Error
+<dl class="message-properties">
+    <dt>error <span class="property-type">object</span></dt>
+    <dd>With "Send errors to a separate output": { message, code, source }.</dd>
+</dl>
+</li>
+</ol>
+<h3>Details</h3>
+<p>Commands from the denylist (<code>FLUSHALL</code>, <code>FLUSHDB</code>, <code>CONFIG</code>, <code>SHUTDOWN</code>, <code>SWAPDB</code>, <code>FAILOVER</code>, <code>CLIENT KILL</code>, admin <code>CLUSTER</code> subcommands and similar) are rejected unless the denylist is disabled. Scripts (<code>EVAL</code>, <code>FCALL</code>) are rejected from <code>msg.command</code>; set <code>EVAL</code> as the node command and pass the script in <code>msg.args</code>. Blocking commands such as <code>BLPOP</code> and commands that change the connection such as <code>CLIENT REPLY</code> are always rejected, because they would stall or break the shared connection.</p>
+<p>Up to Concurrency messages run at the same time and up to Max queue wait; a full queue fails the message with <code>INPUT_QUEUE_FULL</code>. With Concurrency above 1 the order of replies is not guaranteed.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#command" target="_blank" rel="noopener noreferrer">README: command</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-multi">
+<p>Runs several commands in one MULTI/EXEC transaction.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt class="optional">commands <span class="property-type">array</span></dt>
+    <dd>Array of commands, each an array: <code>[["SET","k","v"],["INCR","c"]]</code>. Overrides the configured list.</dd>
+</dl>
+<h3>Outputs</h3>
+<ol class="node-ports">
+<li>Results
+<dl class="message-properties">
+    <dt>payload <span class="property-type">array</span></dt>
+    <dd>One reply per command.</dd>
+    <dt>redkern.redis <span class="property-type">object</span></dt>
+    <dd>Palette metadata. Other palettes keep their own keys under msg.redkern.</dd>
+</dl>
+</li>
+<li>Error
+<dl class="message-properties">
+    <dt>error <span class="property-type">object</span></dt>
+    <dd>With "Send errors to a separate output": { message, code, source }.</dd>
+</dl>
+</li>
+</ol>
+<h3>Details</h3>
+<p>The denylist applies to every command; scripts are rejected in <code>msg.commands</code>. If any command fails, the message fails with all errors listed.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#multi" target="_blank" rel="noopener noreferrer">README: multi</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-scan">
+<p>Walks SCAN, HSCAN, SSCAN or ZSCAN to the end, up to a result limit and a timeout.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt class="optional">key <span class="property-type">string</span></dt>
+    <dd>Key for HSCAN, SSCAN and ZSCAN.</dd>
+    <dt class="optional">match <span class="property-type">string</span></dt>
+    <dd>Overrides the configured pattern.</dd>
+    <dt class="optional">scanType <span class="property-type">string</span></dt>
+    <dd>Overrides the configured type.</dd>
+</dl>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>payload <span class="property-type">array</span></dt>
+    <dd>Keys or members; HSCAN and ZSCAN return <code>{ member, value }</code>.</dd>
+    <dt>redkern.redis.scan <span class="property-type">object</span></dt>
+    <dd><code>{ type, complete, truncated, timedOut, count }</code>.</dd>
+</dl>
+<h3>Details</h3>
+<p>In cluster mode SCAN visits every master. A result cut by the limit or the timeout has <code>complete: false</code> and a yellow status.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#scan" target="_blank" rel="noopener noreferrer">README: scan</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-subscribe">
+<p>Receives Redis Pub/Sub messages from channels or patterns.</p>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>Channel the message came from.</dd>
+    <dt>payload <span class="property-type">string</span></dt>
+    <dd>Message text.</dd>
+    <dt>pattern <span class="property-type">string</span></dt>
+    <dd>Matching pattern in pattern mode.</dd>
+    <dt>redkern.redis <span class="property-type">object</span></dt>
+    <dd>Palette metadata. Other palettes keep their own keys under msg.redkern.</dd>
+</dl>
+<h3>Details</h3>
+<p>All subscribe nodes of one config node share one subscriber connection. After a reconnect the subscriptions are restored automatically. Messages published while the connection is down are lost, as Pub/Sub has no history; use Streams when every message matters.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#subscribe" target="_blank" rel="noopener noreferrer">README: subscribe</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-list-in">
+<p>Pops elements from a Redis list with BLPOP or BRPOP on its own connection.</p>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>List key.</dd>
+    <dt>payload <span class="property-type">string</span></dt>
+    <dd>Popped element.</dd>
+    <dt>redkern.redis <span class="property-type">object</span></dt>
+    <dd>Palette metadata. Other palettes keep their own keys under msg.redkern.</dd>
+</dl>
+<h3>Details</h3>
+<p>A transitional node for list queues; it will be deprecated once queues move to Streams. Popping removes the element from the list, so an element that is being processed when the pod dies is lost. There is no reliable BLMOVE mode: delivery guarantees come from stream in.</p>
+<p>Prefetch limits elements in the flow at once. With 1 the next element is popped only after the previous message completed in the flow; with 0 the node pops without limit, as the legacy subscribe node did. A message that never completes frees its slot after the release timeout.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#list-in" target="_blank" rel="noopener noreferrer">README: list-in</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-stream-in">
+<p>Reads a Redis stream through a consumer group with at-least-once delivery, DLQ and backpressure.</p>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>payload <span class="property-type">object | array</span></dt>
+    <dd>Entry fields; JSON objects and arrays written by stream out are restored. An array with batching.</dd>
+    <dt>redkern.redis <span class="property-type">object</span></dt>
+    <dd><code>{ stream, group, id, consumer, deliveries }</code>; <code>id</code> and <code>deliveries</code> are arrays with batching. stream ack reads it.</dd>
+</dl>
+<h3>Details</h3>
+<p>With manual ACK every entry stays in the PEL until stream ack confirms it. After a pod crash, or when processing takes longer than Reclaim idle, the entry is delivered again, so downstream processing must be idempotent; <code>redkern_redis_redeliveries_total</code> counts repeats. Only pause/resume and a regular redeploy are free of duplicates.</p>
+<p>On start the node recovers its own PEL through a cursor before reading new entries, then reclaims entries abandoned by dead consumers with XAUTOCLAIM. An entry delivered more than Max deliveries times moves to the dead-letter stream atomically with its ACK.</p>
+<p>Backpressure stops reading when the own PEL (or the group PEL) reaches Max pending. Pause, resume, drain and status come from stream control, the admin API and the preStop drain route on port 9551.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#stream-in" target="_blank" rel="noopener noreferrer">README: stream-in</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-stream-out">
+<p>Adds msg.payload to a Redis stream with XADD.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd>Flat object of fields; nested objects and arrays are stored as JSON.</dd>
+    <dt class="optional">stream <span class="property-type">string</span></dt>
+    <dd>Stream key when "Allow msg.stream" is on.</dd>
+</dl>
+<h3>Outputs</h3>
+<ol class="node-ports">
+<li>Added
+<dl class="message-properties">
+    <dt>redkern.redis.xadd <span class="property-type">object</span></dt>
+    <dd><code>{ stream, id }</code> of the new entry. Other keys of msg.redkern.redis stay, so the original entry can still be acknowledged.</dd>
+</dl>
+</li>
+<li>Error
+<dl class="message-properties">
+    <dt>error <span class="property-type">object</span></dt>
+    <dd>With "Send errors to a separate output": { message, code, source }.</dd>
+</dl>
+</li>
+</ol>
+<h3>Details</h3>
+<p>MAXLEN trimming can remove entries still pending in a consumer group and needs the explicit "Allow trimming" option.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#stream-out" target="_blank" rel="noopener noreferrer">README: stream-out</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-stream-ack">
+<p>Acknowledges stream entries delivered by stream in.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt>redkern.redis <span class="property-type">object</span></dt>
+    <dd><code>id</code> (string or array for a batch), <code>stream</code> and <code>group</code> as set by stream in.</dd>
+    <dt class="optional">streamId <span class="property-type">string | array</span></dt>
+    <dd>Legacy ID field, used when msg.redkern.redis is missing.</dd>
+    <dt class="optional">deleteAfterAck <span class="property-type">boolean</span></dt>
+    <dd>Overrides "XDEL after ACK".</dd>
+</dl>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>redkern.redis.ack <span class="property-type">object</span></dt>
+    <dd><code>{ acked, deleted }</code>. Only with "Pass the message on".</dd>
+</dl>
+<h3>Details</h3>
+<p>A batch is acknowledged with one XACK. The node also releases the entries in the in-flight registry of stream in, which lets it read more under backpressure.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#stream-ack" target="_blank" rel="noopener noreferrer">README: stream-ack</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-stream-claim">
+<p>Claims stream entries idle longer than a threshold with XAUTOCLAIM.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt class="optional">stream <span class="property-type">string</span></dt>
+    <dd>Overrides the stream key.</dd>
+    <dt class="optional">group <span class="property-type">string</span></dt>
+    <dd>Overrides the group.</dd>
+    <dt class="optional">consumer <span class="property-type">string</span></dt>
+    <dd>Consumer that receives the entries.</dd>
+    <dt class="optional">minIdleMs <span class="property-type">number</span></dt>
+    <dd>Overrides Min idle.</dd>
+</dl>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>payload <span class="property-type">array</span></dt>
+    <dd><code>{ id, payload }</code> per claimed entry.</dd>
+    <dt>redkern.redis.claim <span class="property-type">object</span></dt>
+    <dd><code>{ stream, group, consumer, complete, count }</code>.</dd>
+</dl>
+<h3>Details</h3>
+<p>stream in reclaims entries by itself; this node is for manual recovery flows.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#stream-claim" target="_blank" rel="noopener noreferrer">README: stream-claim</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-stream-gc">
+<p>Removes idle consumers with an empty PEL from a consumer group.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt class="optional">stream <span class="property-type">string</span></dt>
+    <dd>Overrides the stream key.</dd>
+    <dt class="optional">group <span class="property-type">string</span></dt>
+    <dd>Overrides the group.</dd>
+    <dt class="optional">minIdleMs <span class="property-type">number</span></dt>
+    <dd>Overrides Min idle.</dd>
+</dl>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd><code>{ removed, kept }</code> with consumer names and idle times.</dd>
+</dl>
+<h3>Details</h3>
+<p>Every pod restart creates a new consumer name. The check for an empty PEL and the delete run in one Lua script, so a consumer that read entries in between is never deleted.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#stream-gc" target="_blank" rel="noopener noreferrer">README: stream-gc</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-stream-metrics">
+<p>Samples a consumer group: PEL, lag, consumers and DLQ length.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt class="optional">stream <span class="property-type">string</span></dt>
+    <dd>Overrides the stream key.</dd>
+    <dt class="optional">group <span class="property-type">string</span></dt>
+    <dd>Overrides the group.</dd>
+    <dt class="optional">deadLetterStream <span class="property-type">string</span></dt>
+    <dd>Overrides the DLQ stream.</dd>
+</dl>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd><code>{ stream, group, pending, lag, consumers, deadLetterLength, lastDeliveredId, sampledAt }</code>.</dd>
+</dl>
+<h3>Details</h3>
+<p>Each sample also updates the palette metrics registry. With the prometheus palette the metrics appear in its /metrics; without it they are served on the internal port 9551 when <code>REDKERN_REDIS_METRICS_TOKEN</code> is set.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#metrics" target="_blank" rel="noopener noreferrer">README: metrics</a></li></ul>
+</script>
+
+<script type="text/html" data-help-name="redkern-redis-stream-control">
+<p>Pauses, resumes, drains or reports stream in consumers of this runtime.</p>
+<h3>Inputs</h3>
+<dl class="message-properties">
+    <dt>payload.action <span class="property-type">string</span></dt>
+    <dd><code>pause</code>, <code>resume</code>, <code>drain</code> or <code>status</code>, when the node action is "from msg".</dd>
+    <dt class="optional">payload.stream <span class="property-type">string</span></dt>
+    <dd>Only consumers of this stream.</dd>
+    <dt class="optional">payload.group <span class="property-type">string</span></dt>
+    <dd>Only consumers of this group.</dd>
+    <dt class="optional">payload.nodeId <span class="property-type">string</span></dt>
+    <dd>Only this stream in node.</dd>
+    <dt class="optional">payload.drainTimeoutMs <span class="property-type">number</span></dt>
+    <dd>Drain timeout.</dd>
+</dl>
+<h3>Outputs</h3>
+<dl class="message-properties">
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd><code>{ action, target, consumers, drained }</code>.</dd>
+</dl>
+<h3>Details</h3>
+<p>Drain stops reading new entries, sends entries already reserved and waits for an empty own PEL. The same commands are available over HTTP: GET/POST /redkern/redis/streams/status and /control on the admin API, and the preStop drain route on port 9551.</p>
+<h3>References</h3>
+<ul><li><a href="https://github.com/redkern/node-red-redis#control" target="_blank" rel="noopener noreferrer">README: control</a></li></ul>
+</script>

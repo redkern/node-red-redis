@@ -1,0 +1,78 @@
+{
+  "name": "@redkern/node-red-redis",
+  "version": "1.0.0",
+  "description": "Production Redis palette for Node-RED: commands, Pub/Sub, scans, transactions and Redis Streams consumer groups with at-least-once delivery, DLQ and backpressure",
+  "keywords": [
+    "node-red",
+    "redis",
+    "redis-streams",
+    "pubsub",
+    "xreadgroup",
+    "consumer-group",
+    "redkern"
+  ],
+  "license": "Apache-2.0",
+  "author": "redkern <support@redkern.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/redkern/node-red-redis.git"
+  },
+  "bugs": {
+    "url": "https://github.com/redkern/node-red-redis/issues"
+  },
+  "homepage": "https://github.com/redkern/node-red-redis#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "redkern": {
+    "reqPrefix": "RDS"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": "./nodes/redkern-redis.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "nodes/",
+    "examples/",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --unhandled-rejections=strict --test test/unit/*.test.js",
+    "test:integration": "node --unhandled-rejections=strict --test --test-concurrency=1 test/integration/*.test.js",
+    "check:editor": "node scripts/check-editor.js",
+    "check:pack": "node scripts/check-pack.js",
+    "build:catalogs": "node scripts/build-catalogs.js",
+    "verify": "node scripts/build-editor.js --check && node scripts/build-catalogs.js --check && node scripts/build-help.js --check && node scripts/build-icons.js --check && npm run lint && npm run check:editor && npm run check:req-ids && npm test",
+    "build": "node scripts/build-editor.js && node scripts/build-catalogs.js && node scripts/build-help.js && node scripts/build-icons.js",
+    "lint": "node scripts/lint.js",
+    "check:req-ids": "node scripts/check-req-ids.js",
+    "test:load": "node --unhandled-rejections=strict scripts/load-test.js",
+    "test:chaos": "node --unhandled-rejections=strict scripts/chaos-test.js",
+    "test:pods": "node --unhandled-rejections=strict scripts/pods-test.js",
+    "test:soak": "node --expose-gc --unhandled-rejections=strict scripts/soak-test.js"
+  },
+  "dependencies": {
+    "@redkern/node-red-kit": "^1.1.0",
+    "ioredis": "6.0.0"
+  },
+  "devDependencies": {
+    "@yroshcha/node-red-contrib-redis-full": "^2.0.2",
+    "node-red": "^5.0.10",
+    "node-red-node-test-helper": "0.3.6"
+  },
+  "node-red": {
+    "version": ">=4.1.0 <6.0.0",
+    "nodes": {
+      "redkern-redis": "nodes/redkern-redis.js"
+    }
+  }
+}

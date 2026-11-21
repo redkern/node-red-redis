@@ -1,0 +1,66 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    RED.nodes.registerType("redkern-redis-stream-ack", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-stream-ack.svg",
+        align: "right",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            streamKey: { value: "" },
+            group: { value: "" },
+            deleteAfterAck: { value: false },
+            legacyMsgFields: { value: false },
+            outputs: { value: 0 }
+        },
+        inputs: 1,
+        outputs: 0,
+        paletteLabel: function () { return this._("streamAck.paletteLabel"); },
+        label: function () { return this.name || this.streamKey || this._("streamAck.default"); },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        inputLabels: function () { return this._("common.ports.input"); },
+        outputLabels: function () { return this._("streamAck.ports.acked"); },
+        oneditprepare: function () {
+            $("#redkern-redis-stream-ack-pass").prop("checked", Number(this.outputs) > 0);
+        },
+        oneditsave: function () {
+            $("#node-input-outputs").val($("#redkern-redis-stream-ack-pass").prop("checked") ? 1 : 0);
+        }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-stream-ack">
+    <input type="hidden" id="node-input-outputs">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-streamKey"><i class="fa fa-bars"></i> <span data-i18n="common.label.stream"></span></label>
+        <input type="text" id="node-input-streamKey" data-i18n="[placeholder]common.placeholder.fromMsg">
+    </div>
+    <div class="form-row">
+        <label for="node-input-group"><i class="fa fa-users"></i> <span data-i18n="common.label.group"></span></label>
+        <input type="text" id="node-input-group" data-i18n="[placeholder]common.placeholder.fromMsg">
+    </div>
+    <div class="form-tips" style="margin-bottom: 12px;"><span data-i18n="streamAck.tip.ack"></span></div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-deleteAfterAck" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-deleteAfterAck" style="width: auto;"><span data-i18n="streamAck.label.deleteAfterAck"></span></label>
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="redkern-redis-stream-ack-pass" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="redkern-redis-stream-ack-pass" style="width: auto;"><span data-i18n="streamAck.label.passThrough"></span></label>
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-legacyMsgFields" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-legacyMsgFields" style="width: auto;"><span data-i18n="common.label.legacyMsgFields"></span></label>
+    </div>
+</script>

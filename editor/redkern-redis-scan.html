@@ -1,0 +1,77 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    function intRange(min, max) {
+        return function (value) {
+            var text = String(value === undefined ? "" : value).trim();
+            if (!/^\d+$/.test(text)) { return false; }
+            var number = Number(text);
+            return number >= min && number <= max;
+        };
+    }
+
+    RED.nodes.registerType("redkern-redis-scan", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-scan.svg",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            scanType: { value: "SCAN" },
+            match: { value: "" },
+            count: { value: 100, validate: intRange(1, 100000) },
+            maxResults: { value: 10000, validate: intRange(1, 1000000) },
+            timeoutMs: { value: 10000, validate: intRange(100, 600000) },
+            legacyMsgFields: { value: false }
+        },
+        inputs: 1,
+        outputs: 1,
+        paletteLabel: function () { return this._("scan.paletteLabel"); },
+        label: function () { return this.name || this.match || this._("scan.default"); },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        inputLabels: function () { return this._("common.ports.input"); },
+        outputLabels: function () { return this._("scan.ports.items"); }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-scan">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-scanType"><i class="fa fa-search"></i> <span data-i18n="scan.label.scanType"></span></label>
+        <select id="node-input-scanType" style="width: 140px;">
+            <option value="SCAN">SCAN</option>
+            <option value="HSCAN">HSCAN</option>
+            <option value="SSCAN">SSCAN</option>
+            <option value="ZSCAN">ZSCAN</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-match"><i class="fa fa-filter"></i> <span data-i18n="scan.label.match"></span></label>
+        <input type="text" id="node-input-match" data-i18n="[placeholder]scan.placeholder.match">
+    </div>
+    <div class="form-row">
+        <label for="node-input-count" style="width: 140px;"><span data-i18n="scan.label.count"></span></label>
+        <input type="text" id="node-input-count" style="width: 100px;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-maxResults" style="width: 140px;"><span data-i18n="scan.label.maxResults"></span></label>
+        <input type="text" id="node-input-maxResults" style="width: 100px;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-timeoutMs" style="width: 140px;"><span data-i18n="scan.label.timeoutMs"></span></label>
+        <input type="text" id="node-input-timeoutMs" style="width: 100px;">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-legacyMsgFields" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-legacyMsgFields" style="width: auto;"><span data-i18n="common.label.legacyMsgFields"></span></label>
+    </div>
+    <div class="form-tips"><span data-i18n="scan.tip.scan"></span></div>
+</script>

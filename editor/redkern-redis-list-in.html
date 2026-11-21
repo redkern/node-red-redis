@@ -1,0 +1,70 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    function intRange(min, max) {
+        return function (value) {
+            var text = String(value === undefined ? "" : value).trim();
+            if (!/^\d+$/.test(text)) { return false; }
+            var number = Number(text);
+            return number >= min && number <= max;
+        };
+    }
+
+    RED.nodes.registerType("redkern-redis-list-in", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-list-in.svg",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            key: { value: "", required: true },
+            direction: { value: "BLPOP" },
+            timeout: { value: 5, validate: intRange(0, 3600) },
+            prefetch: { value: 1, validate: intRange(0, 100000) },
+            releaseTimeoutMs: { value: 300000, validate: intRange(1000, 86400000) }
+        },
+        inputs: 0,
+        outputs: 1,
+        paletteLabel: function () { return this._("listIn.paletteLabel"); },
+        label: function () { return this.name || this.key || this._("listIn.default"); },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        outputLabels: function () { return this._("listIn.ports.element"); }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-list-in">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-key"><i class="fa fa-key"></i> <span data-i18n="listIn.label.key"></span></label>
+        <input type="text" id="node-input-key">
+    </div>
+    <div class="form-row">
+        <label for="node-input-direction"><i class="fa fa-arrows-h"></i> <span data-i18n="listIn.label.direction"></span></label>
+        <select id="node-input-direction" style="width: 70%;">
+            <option value="BLPOP" data-i18n="listIn.direction.BLPOP"></option>
+            <option value="BRPOP" data-i18n="listIn.direction.BRPOP"></option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-prefetch" style="width: 160px;"><span data-i18n="listIn.label.prefetch"></span></label>
+        <input type="text" id="node-input-prefetch" style="width: 100px;">
+    </div>
+    <div class="form-tips" style="margin-bottom: 12px;"><span data-i18n="listIn.tip.prefetch"></span></div>
+    <div class="form-row">
+        <label for="node-input-timeout" style="width: 160px;"><span data-i18n="listIn.label.timeout"></span></label>
+        <input type="text" id="node-input-timeout" style="width: 100px;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-releaseTimeoutMs" style="width: 160px;"><span data-i18n="listIn.label.releaseTimeoutMs"></span></label>
+        <input type="text" id="node-input-releaseTimeoutMs" style="width: 100px;">
+    </div>
+    <div class="form-tips"><span data-i18n="listIn.tip.listIn"></span></div>
+</script>

@@ -1,0 +1,96 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    function intRange(min, max) {
+        return function (value) {
+            var text = String(value === undefined ? "" : value).trim();
+            if (!/^\d+$/.test(text)) { return false; }
+            var number = Number(text);
+            return number >= min && number <= max;
+        };
+    }
+
+    RED.nodes.registerType("redkern-redis-command", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-command.svg",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            command: { value: "", validate: function (v) { return v === "" || /^[A-Za-z][A-Za-z0-9_.|-]*(\s+[A-Za-z][A-Za-z0-9_.|-]*)?$/.test(String(v).trim()); } },
+            allowMsgCommand: { value: false },
+            disableDenylist: { value: false },
+            errorOutput: { value: false },
+            concurrency: { value: 64, validate: intRange(1, 10000) },
+            maxQueue: { value: 10000, validate: intRange(0, 1000000) },
+            legacyMsgFields: { value: false },
+            outputs: { value: 1 }
+        },
+        inputs: 1,
+        outputs: 1,
+        paletteLabel: function () { return this._("command.paletteLabel"); },
+        label: function () { return this.name || this.command || this._("command.default"); },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        inputLabels: function () { return this._("common.ports.input"); },
+        outputLabels: function (index) { return index === 0 ? this._("command.ports.result") : this._("common.ports.error"); },
+        oneditprepare: function () {
+            function toggleDenylist() {
+                $("#redkern-redis-command-denylist-warning").toggle($("#node-input-disableDenylist").prop("checked"));
+            }
+            $("#node-input-disableDenylist").on("change", toggleDenylist);
+            toggleDenylist();
+            $("#node-input-errorOutput").on("change", function () {
+                $("#node-input-outputs").val($(this).prop("checked") ? 2 : 1);
+            });
+        },
+        oneditsave: function () {
+            $("#node-input-outputs").val($("#node-input-errorOutput").prop("checked") ? 2 : 1);
+        }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-command">
+    <input type="hidden" id="node-input-outputs">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-command"><i class="fa fa-terminal"></i> <span data-i18n="command.label.command"></span></label>
+        <input type="text" id="node-input-command" data-i18n="[placeholder]command.placeholder.command">
+    </div>
+    <div class="form-tips" style="margin-bottom: 12px;"><span data-i18n="command.tip.command"></span></div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-allowMsgCommand" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-allowMsgCommand" style="width: auto;"><span data-i18n="command.label.allowMsgCommand"></span></label>
+        <div class="form-tips"><span data-i18n="command.tip.allowMsgCommand"></span></div>
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-disableDenylist" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-disableDenylist" style="width: auto;"><i class="fa fa-exclamation-triangle"></i> <span data-i18n="command.label.disableDenylist"></span></label>
+        <div class="form-tips" id="redkern-redis-command-denylist-warning"><i class="fa fa-exclamation-triangle"></i> <span data-i18n="command.tip.denylist"></span></div>
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-errorOutput" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-errorOutput" style="width: auto;"><span data-i18n="common.label.errorOutput"></span></label>
+        <div class="form-tips"><span data-i18n="common.tip.errorOutput"></span></div>
+    </div>
+    <div class="form-row">
+        <label for="node-input-concurrency"><span data-i18n="common.label.concurrency"></span></label>
+        <input type="text" id="node-input-concurrency" style="width: 100px;">
+    </div>
+    <div class="form-tips" style="margin-bottom: 12px;"><span data-i18n="common.tip.concurrency"></span></div>
+    <div class="form-row">
+        <label for="node-input-maxQueue"><span data-i18n="common.label.maxQueue"></span></label>
+        <input type="text" id="node-input-maxQueue" style="width: 100px;">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-legacyMsgFields" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-legacyMsgFields" style="width: auto;"><span data-i18n="common.label.legacyMsgFields"></span></label>
+    </div>
+</script>

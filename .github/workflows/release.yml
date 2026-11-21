@@ -1,0 +1,98 @@
+# Release per the kit standard, section 8: npm only from 1.0.0 via OIDC with
+# provenance and no long-lived npm token; pre-releases (1.0.0-alpha.N, -beta.N,
+# -rc.N) go to a GitHub Release as an npm pack tarball. The npm trusted
+# publisher is bound to this file name and the `npm` environment.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      contents: write   # GitHub release
+      id-token: write   # npm Trusted Publishing (OIDC) and provenance
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6390:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      # Trusted Publishing needs npm 11.5.1 or later; Node.js 22 ships npm 10.
+      - run: npm install -g npm@11
+      - run: npm ci
+      - name: Release identity
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const lock = require('./package-lock.json');
+            const fail = (m) => { console.error(m); process.exit(1); };
+            const tag = process.env.GITHUB_REF_NAME;
+            if ('v' + pkg.version !== tag) fail('tag ' + tag + ' does not match version ' + pkg.version);
+            if (lock.version !== pkg.version || lock.packages[''].version !== pkg.version) fail('package-lock.json version differs');
+            const repo = 'git+https://github.com/' + process.env.GITHUB_REPOSITORY + '.git';
+            if (pkg.repository?.url !== repo) fail('repository.url must be ' + repo);
+            const bad = Object.entries(pkg.dependencies || {}).filter(([, v]) => /^(https?:|git|file:|github:)/.test(v));
+            if (bad.length) fail('URL dependencies are not allowed: ' + JSON.stringify(bad));
+            if (!pkg.version.includes('-')) {
+              const log = require('fs').readFileSync('CHANGELOG.md', 'utf8');
+              if (!new RegExp('^## ' + pkg.version.replace(/\./g, '\\\\.') + ' - \\\\d{4}-\\\\d{2}-\\\\d{2}$', 'm').test(log)) fail('CHANGELOG.md needs a dated entry: ## ' + pkg.version + ' - YYYY-MM-DD');
+            }
+          "
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run verify
+      - run: npm run check:pack
+      - run: npm run test:integration
+        env:
+          REDIS_PORT: '6390'
+      - run: npm pack
+      - name: Smoke install of the packed tarball
+        run: |
+          mkdir -p "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "$GITHUB_WORKSPACE"/redkern-node-red-redis-*.tgz
+          node -e "
+            const types = [];
+            require('@redkern/node-red-redis')({ nodes: { registerType: (t) => types.push(t), createNode() {} }, events: new (require('events'))(), settings: {}, log: { info() {}, warn() {}, error() {}, debug() {} }, httpAdmin: { get() {}, post() {}, use() {} }, auth: { needsPermission: () => (q, s, n) => n() } });
+            if (types.length < 13) { console.error('registered types:', types); process.exit(1); }
+            console.log('registered', types.length, 'node types');
+          "
+      - name: Pre-release to GitHub Release
+        if: contains(github.ref_name, '-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" redkern-node-red-redis-*.tgz --prerelease --title "$GITHUB_REF_NAME" --notes "See CHANGELOG.md"
+      # OIDC Trusted Publishing; NPM_BOOTSTRAP_TOKEN is only for the very first
+      # publish (a Trusted Publisher can't be added before the package exists).
+      - name: Publish to npm
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: |
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            npm publish --access public --provenance
+          else
+            env -u NODE_AUTH_TOKEN npm publish --access public --provenance
+          fi
+      - name: GitHub release
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '$0 ~ "^## " v " " {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" redkern-node-red-redis-*.tgz --title "$GITHUB_REF_NAME" --notes-file notes.md

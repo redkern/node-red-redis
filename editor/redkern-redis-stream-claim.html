@@ -1,0 +1,76 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    function intRange(min, max) {
+        return function (value) {
+            var text = String(value === undefined ? "" : value).trim();
+            if (!/^\d+$/.test(text)) { return false; }
+            var number = Number(text);
+            return number >= min && number <= max;
+        };
+    }
+
+    RED.nodes.registerType("redkern-redis-stream-claim", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-stream-claim.svg",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            streamKey: { value: "" },
+            group: { value: "" },
+            consumer: { value: "" },
+            minIdleMs: { value: 60000, validate: intRange(0, 86400000) },
+            count: { value: 100, validate: intRange(1, 100000) },
+            maxMessages: { value: 1000, validate: intRange(1, 1000000) },
+            legacyMsgFields: { value: false }
+        },
+        inputs: 1,
+        outputs: 1,
+        paletteLabel: function () { return this._("streamClaim.paletteLabel"); },
+        label: function () { return this.name || this.streamKey || this._("streamClaim.default"); },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        inputLabels: function () { return this._("common.ports.input"); },
+        outputLabels: function () { return this._("streamClaim.ports.claimed"); }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-stream-claim">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-streamKey"><i class="fa fa-bars"></i> <span data-i18n="common.label.stream"></span></label>
+        <input type="text" id="node-input-streamKey" data-i18n="[placeholder]common.placeholder.fromMsg">
+    </div>
+    <div class="form-row">
+        <label for="node-input-group"><i class="fa fa-users"></i> <span data-i18n="common.label.group"></span></label>
+        <input type="text" id="node-input-group" data-i18n="[placeholder]common.placeholder.fromMsg">
+    </div>
+    <div class="form-row">
+        <label for="node-input-consumer"><i class="fa fa-user"></i> <span data-i18n="common.label.consumer"></span></label>
+        <input type="text" id="node-input-consumer" data-i18n="[placeholder]common.placeholder.consumer">
+    </div>
+    <div class="form-row">
+        <label for="node-input-minIdleMs" style="width: 140px;"><span data-i18n="streamClaim.label.minIdleMs"></span></label>
+        <input type="text" id="node-input-minIdleMs" style="width: 120px;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-count" style="width: 140px;"><span data-i18n="streamClaim.label.count"></span></label>
+        <input type="text" id="node-input-count" style="width: 120px;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-maxMessages" style="width: 140px;"><span data-i18n="streamClaim.label.maxMessages"></span></label>
+        <input type="text" id="node-input-maxMessages" style="width: 120px;">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-legacyMsgFields" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-legacyMsgFields" style="width: auto;"><span data-i18n="common.label.legacyMsgFields"></span></label>
+    </div>
+</script>

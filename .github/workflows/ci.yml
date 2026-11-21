@@ -1,0 +1,123 @@
+# Interim CI. Switch to the reusable redkern/node-red-kit palette-ci.yml
+# pinned to a commit SHA or exact tag once it is wired up for this repo.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+        node-red: ['4.1', '5']
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6390:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save node-red@${{ matrix.node-red }}
+      - run: npm run verify
+      - run: npm run check:pack
+      - run: npm ls --omit=dev
+      - run: npm run test:integration
+        env:
+          REDIS_PORT: '6390'
+  servers:
+    # Redis 6.2 is the oldest supported server (XAUTOCLAIM, exclusive XPENDING
+    # ranges); Valkey is what ElastiCache and MemoryDB run today.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['redis:6.2-alpine', 'redis:8.0-alpine', 'valkey/valkey:7.2-alpine', 'valkey/valkey:8.1-alpine']
+    services:
+      redis:
+        image: ${{ matrix.image }}
+        ports: ['6390:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:integration
+        env:
+          REDIS_PORT: '6390'
+  topology:
+    # Redis Cluster and TLS need a local redis-server with TLS support.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y redis-server
+      - run: sudo systemctl stop redis-server || true
+      - run: redis-server --port 6390 --bind 127.0.0.1 --daemonize yes
+      - run: sh scripts/start-test-cluster.sh
+      - run: sh scripts/start-test-tls.sh "$RUNNER_TEMP/tls"
+      - run: npm ci
+      - run: node --unhandled-rejections=strict --test --test-concurrency=1 test/integration/cluster.test.js test/integration/tls.test.js
+        env:
+          REDIS_PORT: '6390'
+          REDIS_CLUSTER_PORTS: '7001,7002,7003'
+          REDIS_TLS_PORT: '6391'
+          NODE_EXTRA_CA_CERTS: ${{ runner.temp }}/tls/ca.crt
+      - run: sh scripts/start-test-tls-cluster.sh "$RUNNER_TEMP/tls"
+      - run: node --unhandled-rejections=strict --test test/integration/cluster.test.js
+        env:
+          REDIS_CLUSTER_PORTS: '7201,7202,7203'
+          REDIS_CLUSTER_TLS: '1'
+          NODE_EXTRA_CA_CERTS: ${{ runner.temp }}/tls/ca.crt
+  load:
+    runs-on: ubuntu-24.04
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6390:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:load
+        env:
+          REDIS_PORT: '6390'
+  resilience:
+    # Cluster failover/resharding, Kubernetes-like pods (SIGKILL, preStop drain,
+    # SIGTERM) and a soak run with redeploys. pods-test needs root for unshare.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y redis-server
+      - run: sudo systemctl stop redis-server || true
+      - run: redis-server --port 6390 --bind 127.0.0.1 --daemonize yes
+      - run: npm ci
+      - run: sh scripts/start-chaos-cluster.sh
+      - run: npm run test:chaos -- --seconds 60
+      - run: sudo -E env "PATH=$PATH" npm run test:pods -- --seconds 60
+        env:
+          REDIS_PORT: '6390'
+      - run: npm run test:soak -- --minutes 5 --redeploy 20
+        env:
+          REDIS_PORT: '6390'

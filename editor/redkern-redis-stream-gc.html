@@ -1,0 +1,53 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    RED.nodes.registerType("redkern-redis-stream-gc", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-stream-gc.svg",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            streamKey: { value: "" },
+            group: { value: "" },
+            minIdleMs: { value: 600000, validate: function (value) { return /^\d+$/.test(String(value).trim()); } },
+            legacyMsgFields: { value: false }
+        },
+        inputs: 1,
+        outputs: 1,
+        paletteLabel: function () { return this._("streamGc.paletteLabel"); },
+        label: function () { return this.name || this.streamKey || this._("streamGc.default"); },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        inputLabels: function () { return this._("common.ports.input"); },
+        outputLabels: function () { return this._("streamGc.ports.report"); }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-stream-gc">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-streamKey"><i class="fa fa-bars"></i> <span data-i18n="common.label.stream"></span></label>
+        <input type="text" id="node-input-streamKey" data-i18n="[placeholder]common.placeholder.fromMsg">
+    </div>
+    <div class="form-row">
+        <label for="node-input-group"><i class="fa fa-users"></i> <span data-i18n="common.label.group"></span></label>
+        <input type="text" id="node-input-group" data-i18n="[placeholder]common.placeholder.fromMsg">
+    </div>
+    <div class="form-row">
+        <label for="node-input-minIdleMs" style="width: 140px;"><span data-i18n="streamGc.label.minIdleMs"></span></label>
+        <input type="text" id="node-input-minIdleMs" style="width: 120px;">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-legacyMsgFields" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-legacyMsgFields" style="width: auto;"><span data-i18n="common.label.legacyMsgFields"></span></label>
+    </div>
+    <div class="form-tips"><span data-i18n="streamGc.tip.gc"></span></div>
+</script>

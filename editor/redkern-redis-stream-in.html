@@ -1,0 +1,178 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    function intRange(min, max) {
+        return function (value) {
+            var text = String(value === undefined ? "" : value).trim();
+            if (!/^\d+$/.test(text)) { return false; }
+            var number = Number(text);
+            return number >= min && number <= max;
+        };
+    }
+    function floatRange(min, max) {
+        return function (value) {
+            var number = Number(value);
+            return String(value).trim() !== "" && isFinite(number) && number >= min && number <= max;
+        };
+    }
+    var FIELDS = {
+        reliability: ["maxPending", "maxDeliveries", "reclaimIdleMs", "reclaimIntervalMs", "reclaimCount", "drainTimeoutMs"],
+        advanced: ["count", "blockMs", "readIntervalMs", "rateLimitPerSecond", "batchWindowMs", "batchIntervalMs", "capacityCheckIntervalMs", "capacityPollMs", "initialBackoffMs", "maxBackoffMs", "backoffMultiplier"]
+    };
+
+    RED.nodes.registerType("redkern-redis-stream-in", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-stream-in.svg",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            streamKey: { value: "", required: true },
+            group: { value: "", required: true },
+            consumer: { value: "" },
+            ackMode: { value: "manual" },
+            startId: { value: "$", required: true },
+            startPaused: { value: false },
+            maxPending: { value: 1000, validate: intRange(1, 1000000) },
+            backpressureScope: { value: "consumer" },
+            maxDeliveries: { value: 5, validate: intRange(0, 1000) },
+            deadLetterStream: { value: "" },
+            autoClaim: { value: true },
+            reclaimIdleMs: { value: 60000, validate: intRange(1000, 86400000) },
+            reclaimIntervalMs: { value: 30000, validate: intRange(1000, 86400000) },
+            reclaimCount: { value: 100, validate: intRange(1, 100000) },
+            drainTimeoutMs: { value: 30000, validate: intRange(0, 1800000) },
+            count: { value: 100, validate: intRange(1, 100000) },
+            blockMs: { value: 5000, validate: intRange(1, 600000) },
+            readIntervalMs: { value: 0, validate: intRange(0, 3600000) },
+            rateLimitPerSecond: { value: 0, validate: floatRange(0, 1000000) },
+            batchWindowMs: { value: 0, validate: intRange(0, 3600000) },
+            batchIntervalMs: { value: 0, validate: intRange(0, 3600000) },
+            capacityCheckIntervalMs: { value: 250, validate: intRange(50, 600000) },
+            capacityPollMs: { value: 500, validate: intRange(50, 600000) },
+            initialBackoffMs: { value: 500, validate: intRange(50, 600000) },
+            maxBackoffMs: { value: 30000, validate: intRange(50, 3600000) },
+            backoffMultiplier: { value: 2, validate: floatRange(1, 10) },
+            legacyMsgFields: { value: false }
+        },
+        inputs: 0,
+        outputs: 1,
+        paletteLabel: function () { return this._("streamIn.paletteLabel"); },
+        label: function () {
+            if (this.name) { return this.name; }
+            if (this.streamKey && this.group) { return this.streamKey + ":" + this.group; }
+            return this._("streamIn.default");
+        },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        outputLabels: function () { return this._("streamIn.ports.entries"); },
+        oneditprepare: function () {
+            var node = this;
+            var tabs = RED.tabs.create({
+                id: "redkern-redis-stream-in-tabs",
+                onchange: function (tab) {
+                    $("#redkern-redis-stream-in-tabs-content").children().hide();
+                    $("#" + tab.id).show();
+                }
+            });
+            tabs.addTab({ id: "redkern-redis-stream-in-tab-general", label: node._("common.tabs.general") });
+            tabs.addTab({ id: "redkern-redis-stream-in-tab-reliability", label: node._("common.tabs.reliability") });
+            tabs.addTab({ id: "redkern-redis-stream-in-tab-advanced", label: node._("common.tabs.advanced") });
+            ["reliability", "advanced"].forEach(function (tab) {
+                var container = $("#redkern-redis-stream-in-" + tab + "-fields");
+                FIELDS[tab].forEach(function (field) {
+                    var row = $('<div class="form-row"></div>').appendTo(container);
+                    $('<label style="width: 170px;"></label>').attr("for", "node-input-" + field).text(node._("streamIn.label." + field)).appendTo(row);
+                    $('<input type="text" style="width: 120px;">').attr("id", "node-input-" + field).val(node[field]).appendTo(row);
+                });
+            });
+            function toggleAck() {
+                var manual = $("#node-input-ackMode").val() === "manual";
+                $(".redkern-redis-stream-in-manual").toggle(manual);
+            }
+            $("#node-input-ackMode").on("change", toggleAck);
+            toggleAck();
+        },
+        oneditsave: function () {
+            var node = this;
+            FIELDS.reliability.concat(FIELDS.advanced).forEach(function (field) {
+                node[field] = $("#node-input-" + field).val();
+            });
+        }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-stream-in">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row redkern-redis-tabs-row">
+        <ul style="min-width: 500px; margin-bottom: 20px;" id="redkern-redis-stream-in-tabs"></ul>
+    </div>
+    <div id="redkern-redis-stream-in-tabs-content">
+        <div id="redkern-redis-stream-in-tab-general">
+            <div class="form-row">
+                <label for="node-input-streamKey"><i class="fa fa-bars"></i> <span data-i18n="common.label.stream"></span></label>
+                <input type="text" id="node-input-streamKey">
+            </div>
+            <div class="form-row">
+                <label for="node-input-group"><i class="fa fa-users"></i> <span data-i18n="common.label.group"></span></label>
+                <input type="text" id="node-input-group">
+            </div>
+            <div class="form-row">
+                <label for="node-input-consumer"><i class="fa fa-user"></i> <span data-i18n="common.label.consumer"></span></label>
+                <input type="text" id="node-input-consumer" data-i18n="[placeholder]common.placeholder.consumer">
+            </div>
+            <div class="form-row">
+                <label for="node-input-ackMode"><i class="fa fa-check"></i> <span data-i18n="streamIn.label.ackMode"></span></label>
+                <select id="node-input-ackMode" style="width: 70%;">
+                    <option value="manual" data-i18n="streamIn.ackMode.manual"></option>
+                    <option value="auto" data-i18n="streamIn.ackMode.auto"></option>
+                </select>
+            </div>
+            <div class="form-tips" style="margin-bottom: 12px;"><span data-i18n="streamIn.tip.ackMode"></span></div>
+            <div class="form-row">
+                <label for="node-input-startId"><span data-i18n="streamIn.label.startId"></span></label>
+                <input type="text" id="node-input-startId" style="width: 120px;">
+            </div>
+            <div class="form-row">
+                <input type="checkbox" id="node-input-startPaused" style="display: inline-block; width: auto; vertical-align: top;">
+                <label for="node-input-startPaused" style="width: auto;"><span data-i18n="streamIn.label.startPaused"></span></label>
+                <div class="form-tips"><span data-i18n="streamIn.tip.startPaused"></span></div>
+            </div>
+        </div>
+        <div id="redkern-redis-stream-in-tab-reliability" style="display: none;">
+            <div class="form-row redkern-redis-stream-in-manual">
+                <label for="node-input-backpressureScope" style="width: 170px;"><span data-i18n="streamIn.label.backpressureScope"></span></label>
+                <select id="node-input-backpressureScope" style="width: 55%;">
+                    <option value="consumer" data-i18n="streamIn.backpressureScope.consumer"></option>
+                    <option value="group" data-i18n="streamIn.backpressureScope.group"></option>
+                </select>
+            </div>
+            <div class="form-row redkern-redis-stream-in-manual">
+                <label for="node-input-deadLetterStream" style="width: 170px;"><span data-i18n="streamIn.label.deadLetterStream"></span></label>
+                <input type="text" id="node-input-deadLetterStream" style="width: 55%;" data-i18n="[placeholder]streamIn.placeholder.deadLetterStream">
+            </div>
+            <div class="form-row redkern-redis-stream-in-manual">
+                <input type="checkbox" id="node-input-autoClaim" style="display: inline-block; width: auto; vertical-align: top;">
+                <label for="node-input-autoClaim" style="width: auto;"><span data-i18n="streamIn.label.autoClaim"></span></label>
+            </div>
+            <div id="redkern-redis-stream-in-reliability-fields"></div>
+            <div class="form-tips"><span data-i18n="streamIn.tip.reclaimIdleMs"></span></div>
+        </div>
+        <div id="redkern-redis-stream-in-tab-advanced" style="display: none;">
+            <div id="redkern-redis-stream-in-advanced-fields"></div>
+            <div class="form-tips" style="margin-bottom: 12px;"><span data-i18n="streamIn.tip.batch"></span></div>
+            <div class="form-row">
+                <input type="checkbox" id="node-input-legacyMsgFields" style="display: inline-block; width: auto; vertical-align: top;">
+                <label for="node-input-legacyMsgFields" style="width: auto;"><span data-i18n="common.label.legacyMsgFields"></span></label>
+                <div class="form-tips"><span data-i18n="common.tip.legacyMsgFields"></span></div>
+            </div>
+        </div>
+    </div>
+</script>

@@ -1,0 +1,102 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    function intRange(min, max) {
+        return function (value) {
+            var text = String(value === undefined ? "" : value).trim();
+            if (!/^\d+$/.test(text)) { return false; }
+            var number = Number(text);
+            return number >= min && number <= max;
+        };
+    }
+
+    RED.nodes.registerType("redkern-redis-stream-out", {
+        category: "redkern redis",
+        color: "#F4B3A1",
+        icon: "redkern-redis-stream-out.svg",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "redkern-redis-config", required: true },
+            streamKey: {
+                value: "",
+                validate: function (value) { return Boolean(value) || $("#node-input-allowMsgStream").prop("checked") === true || this.allowMsgStream === true; }
+            },
+            allowMsgStream: { value: false },
+            maxlen: { value: 0, validate: intRange(0, 9007199254740991) },
+            approxTrim: { value: true },
+            unsafeTrim: { value: false },
+            errorOutput: { value: false },
+            concurrency: { value: 64, validate: intRange(1, 10000) },
+            maxQueue: { value: 10000, validate: intRange(0, 1000000) },
+            legacyMsgFields: { value: false },
+            outputs: { value: 1 }
+        },
+        inputs: 1,
+        outputs: 1,
+        paletteLabel: function () { return this._("streamOut.paletteLabel"); },
+        label: function () { return this.name || this.streamKey || this._("streamOut.default"); },
+        labelStyle: function () { return this.name ? "node_label" : "node_label_italic"; },
+        inputLabels: function () { return this._("common.ports.input"); },
+        outputLabels: function (index) { return index === 0 ? this._("streamOut.ports.added") : this._("common.ports.error"); },
+        oneditprepare: function () {
+            $("#node-input-errorOutput").on("change", function () {
+                $("#node-input-outputs").val($(this).prop("checked") ? 2 : 1);
+            });
+        },
+        oneditsave: function () {
+            $("#node-input-outputs").val($("#node-input-errorOutput").prop("checked") ? 2 : 1);
+        }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-stream-out">
+    <input type="hidden" id="node-input-outputs">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> <span data-i18n="common.label.server"></span></label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-streamKey"><i class="fa fa-bars"></i> <span data-i18n="common.label.stream"></span></label>
+        <input type="text" id="node-input-streamKey">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-allowMsgStream" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-allowMsgStream" style="width: auto;"><span data-i18n="streamOut.label.allowMsgStream"></span></label>
+    </div>
+    <div class="form-tips" style="margin-bottom: 12px;"><span data-i18n="streamOut.tip.payload"></span></div>
+    <div class="form-row">
+        <label for="node-input-maxlen"><span data-i18n="streamOut.label.maxlen"></span></label>
+        <input type="text" id="node-input-maxlen" style="width: 120px;">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-approxTrim" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-approxTrim" style="width: auto;"><span data-i18n="streamOut.label.approxTrim"></span></label>
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-unsafeTrim" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-unsafeTrim" style="width: auto;"><i class="fa fa-exclamation-triangle"></i> <span data-i18n="streamOut.label.unsafeTrim"></span></label>
+        <div class="form-tips"><span data-i18n="streamOut.tip.trim"></span></div>
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-errorOutput" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-errorOutput" style="width: auto;"><span data-i18n="common.label.errorOutput"></span></label>
+        <div class="form-tips"><span data-i18n="common.tip.errorOutput"></span></div>
+    </div>
+    <div class="form-row">
+        <label for="node-input-concurrency"><span data-i18n="common.label.concurrency"></span></label>
+        <input type="text" id="node-input-concurrency" style="width: 100px;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-maxQueue"><span data-i18n="common.label.maxQueue"></span></label>
+        <input type="text" id="node-input-maxQueue" style="width: 100px;">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-legacyMsgFields" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-legacyMsgFields" style="width: auto;"><span data-i18n="common.label.legacyMsgFields"></span></label>
+    </div>
+</script>

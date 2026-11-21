@@ -1,0 +1,308 @@
+{
+  "common": {
+    "tabs": {
+      "general": "General",
+      "reliability": "Reliability",
+      "advanced": "Advanced"
+    },
+    "label": {
+      "name": "Name",
+      "server": "Redis",
+      "concurrency": "Concurrency",
+      "maxQueue": "Max queue",
+      "errorOutput": "Send errors to a separate output",
+      "legacyMsgFields": "Legacy msg fields",
+      "stream": "Stream",
+      "group": "Group",
+      "consumer": "Consumer"
+    },
+    "tip": {
+      "concurrency": "Messages handled at the same time. With more than 1 the order of results is not guaranteed; set 1 when order matters.",
+      "errorOutput": "Errors leave through the last output labelled error instead of Catch. Use it for high-rate flows, where a Redis outage would otherwise flood the logs.",
+      "legacyMsgFields": "Also writes the fields of @yroshcha/node-red-contrib-redis-full (msg.streamId and others). Turn it on for a migrated node when the flow still reads those fields; keep it off for new nodes.",
+      "env": "Can be ${VAR}: the value is taken from the environment and the flow in Git shows where it comes from."
+    },
+    "ports": {
+      "input": "message",
+      "error": "error"
+    },
+    "placeholder": {
+      "optional": "optional",
+      "fromMsg": "from msg",
+      "consumer": "pod name and node id"
+    }
+  },
+  "config": {
+    "paletteLabel": "redis",
+    "default": "redis",
+    "label": {
+      "mode": "Mode",
+      "host": "Host",
+      "port": "Port",
+      "clusterNodes": "Cluster nodes",
+      "db": "Database",
+      "username": "Username",
+      "password": "Password",
+      "tls": "Use TLS",
+      "tlsServername": "TLS server name",
+      "connectTimeout": "Connect timeout (ms)",
+      "commandTimeout": "Command timeout (ms)",
+      "connections": "Connections"
+    },
+    "mode": {
+      "standalone": "standalone",
+      "cluster": "cluster"
+    },
+    "placeholder": {
+      "clusterNodes": "host:port, host:port (empty: host and port above)",
+      "tlsServername": "defaults to the host"
+    },
+    "tip": {
+      "cluster": "Cluster uses database 0. Streams with a DLQ need a hash tag, for example orders:{eu} and orders:{eu}:dlq.",
+      "connections": "Per pod: 1 shared connection, 1 subscriber with Pub/Sub nodes and 1 blocking connection per stream-in and list-in node."
+    },
+    "status": {
+      "unavailable": "Live state needs adminAuth and a deployed config node.",
+      "state": "State",
+      "none": "not connected yet"
+    }
+  },
+  "command": {
+    "paletteLabel": "command",
+    "default": "command",
+    "label": {
+      "command": "Command",
+      "allowMsgCommand": "Allow msg.command",
+      "disableDenylist": "Disable denylist"
+    },
+    "placeholder": {
+      "command": "HGET"
+    },
+    "tip": {
+      "command": "Arguments come from msg.args, for example [\"user:1\", \"name\"].",
+      "allowMsgCommand": "msg.command (string or array of tokens) replaces the configured command. The denylist still applies and scripts (EVAL, FCALL) are rejected.",
+      "denylist": "Without the denylist, FLUSHALL, CONFIG, SHUTDOWN and similar commands can run from this node. Blocking commands are always rejected."
+    },
+    "ports": {
+      "result": "result"
+    }
+  },
+  "multi": {
+    "paletteLabel": "multi",
+    "default": "MULTI",
+    "label": {
+      "commands": "Commands",
+      "disableDenylist": "Disable denylist"
+    },
+    "placeholder": {
+      "commands": "[[\"SET\",\"k\",\"v\"],[\"INCR\",\"c\"]] (empty: msg.commands)"
+    },
+    "tip": {
+      "commands": "msg.commands overrides this list. Every command passes the denylist."
+    },
+    "ports": {
+      "results": "results"
+    }
+  },
+  "scan": {
+    "paletteLabel": "scan",
+    "default": "scan",
+    "label": {
+      "scanType": "Type",
+      "match": "Match",
+      "count": "Count per call",
+      "maxResults": "Max results",
+      "timeoutMs": "Timeout (ms)"
+    },
+    "placeholder": {
+      "match": "user:*"
+    },
+    "tip": {
+      "scan": "Walks the cursor until the end, the result limit or the timeout. In cluster mode SCAN visits every master. HSCAN, SSCAN and ZSCAN take msg.key."
+    },
+    "ports": {
+      "items": "items"
+    }
+  },
+  "subscribe": {
+    "paletteLabel": "subscribe",
+    "default": "subscribe",
+    "label": {
+      "mode": "Mode",
+      "channels": "Channels"
+    },
+    "mode": {
+      "subscribe": "channels (SUBSCRIBE)",
+      "psubscribe": "patterns (PSUBSCRIBE)"
+    },
+    "placeholder": {
+      "channels": "news, alerts"
+    },
+    "tip": {
+      "subscribe": "Pub/Sub only. Subscriptions are restored after a reconnect. For list queues use list in."
+    },
+    "ports": {
+      "message": "message"
+    }
+  },
+  "listIn": {
+    "paletteLabel": "list in",
+    "default": "list in",
+    "label": {
+      "key": "List key",
+      "direction": "Pop from",
+      "timeout": "Block timeout (s)",
+      "prefetch": "Prefetch",
+      "releaseTimeoutMs": "Release timeout (ms)"
+    },
+    "direction": {
+      "BLPOP": "head (BLPOP)",
+      "BRPOP": "tail (BRPOP)"
+    },
+    "tip": {
+      "listIn": "Transitional node for list queues: popping removes the element. Delivery guarantees come from Redis Streams; this node will be deprecated after the move to Streams.",
+      "prefetch": "1 pops the next element only after the flow completed the previous message. 0 means unlimited (legacy behaviour)."
+    },
+    "ports": {
+      "element": "element"
+    }
+  },
+  "streamIn": {
+    "paletteLabel": "stream in",
+    "default": "stream in",
+    "label": {
+      "ackMode": "ACK",
+      "startId": "Start ID",
+      "startPaused": "Start paused",
+      "maxPending": "Max pending",
+      "backpressureScope": "Backpressure by",
+      "maxDeliveries": "Max deliveries",
+      "deadLetterStream": "Dead-letter stream",
+      "autoClaim": "Reclaim abandoned entries",
+      "reclaimIdleMs": "Reclaim idle (ms)",
+      "reclaimIntervalMs": "Reclaim interval (ms)",
+      "reclaimCount": "Reclaim count",
+      "drainTimeoutMs": "Drain timeout (ms)",
+      "count": "Read count",
+      "blockMs": "Block (ms)",
+      "readIntervalMs": "Read interval (ms)",
+      "rateLimitPerSecond": "Rate limit (msg/s)",
+      "batchWindowMs": "Batch window (ms)",
+      "batchIntervalMs": "Batch interval (ms)",
+      "capacityCheckIntervalMs": "Capacity check (ms)",
+      "capacityPollMs": "Capacity poll (ms)",
+      "initialBackoffMs": "Initial backoff (ms)",
+      "maxBackoffMs": "Max backoff (ms)",
+      "backoffMultiplier": "Backoff multiplier"
+    },
+    "ackMode": {
+      "manual": "manual: at-least-once",
+      "auto": "auto: at-most-once"
+    },
+    "backpressureScope": {
+      "consumer": "own PEL of this consumer",
+      "group": "PEL of the whole group"
+    },
+    "placeholder": {
+      "deadLetterStream": "stream:dlq"
+    },
+    "tip": {
+      "ackMode": "Manual keeps every entry in the PEL until stream ack; after a pod crash or slow processing an entry can arrive again, so downstream must be idempotent.",
+      "reclaimIdleMs": "Must be longer than the slowest processing of one message, otherwise another consumer takes the entry and it is processed twice.",
+      "startPaused": "For Kubernetes rollout: the group is created but no work is reserved until resume.",
+      "batch": "A batch window above 0 sends arrays: msg.payload and msg.redkern.redis.id become arrays of the same length."
+    },
+    "ports": {
+      "entries": "entries"
+    }
+  },
+  "streamOut": {
+    "paletteLabel": "stream out",
+    "default": "stream out",
+    "label": {
+      "allowMsgStream": "Allow msg.stream",
+      "maxlen": "MAXLEN",
+      "approxTrim": "Approximate trim (~)",
+      "unsafeTrim": "Allow trimming"
+    },
+    "tip": {
+      "payload": "msg.payload must be a flat object; nested objects and arrays are stored as JSON.",
+      "trim": "MAXLEN can remove entries still pending in a consumer group. Use stream gc for safe trimming."
+    },
+    "ports": {
+      "added": "added"
+    }
+  },
+  "streamAck": {
+    "paletteLabel": "stream ack",
+    "default": "stream ack",
+    "label": {
+      "deleteAfterAck": "XDEL after ACK",
+      "passThrough": "Pass the message on"
+    },
+    "tip": {
+      "ack": "Stream and group come from msg.redkern.redis; the fields here are fallbacks for messages without them."
+    },
+    "ports": {
+      "acked": "acknowledged"
+    }
+  },
+  "streamClaim": {
+    "paletteLabel": "stream claim",
+    "default": "stream claim",
+    "label": {
+      "minIdleMs": "Min idle (ms)",
+      "count": "Count per call",
+      "maxMessages": "Max entries"
+    },
+    "ports": {
+      "claimed": "claimed"
+    }
+  },
+  "streamGc": {
+    "paletteLabel": "stream gc",
+    "default": "stream gc",
+    "label": {
+      "minIdleMs": "Min idle (ms)"
+    },
+    "tip": {
+      "gc": "Deletes consumers idle longer than the threshold whose PEL is empty; the check and the delete run in one script."
+    },
+    "ports": {
+      "report": "report"
+    }
+  },
+  "streamMetrics": {
+    "paletteLabel": "stream metrics",
+    "default": "stream metrics",
+    "label": {
+      "deadLetterStream": "Dead-letter stream"
+    },
+    "tip": {
+      "metrics": "Each sample also updates the palette metrics. With the prometheus palette they appear in its /metrics; without it on port 9551 when REDKERN_REDIS_METRICS_TOKEN is set."
+    },
+    "ports": {
+      "sample": "sample"
+    }
+  },
+  "streamControl": {
+    "paletteLabel": "stream control",
+    "default": "stream control",
+    "label": {
+      "action": "Action"
+    },
+    "action": {
+      "msg": "from msg.payload.action",
+      "pause": "pause",
+      "resume": "resume",
+      "drain": "drain",
+      "status": "status"
+    },
+    "tip": {
+      "control": "Acts on every stream in node of this runtime, or the ones matching stream, group or nodeId in the message."
+    },
+    "ports": {
+      "result": "result"
+    }
+  }
+}

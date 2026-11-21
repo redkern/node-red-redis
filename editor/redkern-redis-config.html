@@ -1,0 +1,147 @@
+<script type="text/javascript">
+(function () {
+    "use strict";
+    var ENV = /^\$\{[A-Za-z_][A-Za-z0-9_]*\}$/;
+    function envOrInt(min, max) {
+        return function (value) {
+            var text = String(value === undefined ? "" : value).trim();
+            if (ENV.test(text)) { return true; }
+            if (!/^\d+$/.test(text)) { return false; }
+            var number = Number(text);
+            return number >= min && number <= max;
+        };
+    }
+
+    RED.nodes.registerType("redkern-redis-config", {
+        category: "config",
+        color: "#F4B3A1",
+        defaults: {
+            name: { value: "" },
+            mode: { value: "standalone" },
+            host: { value: "127.0.0.1", required: true },
+            port: { value: 6379, required: true, validate: envOrInt(1, 65535) },
+            clusterNodes: { value: "" },
+            db: { value: 0, validate: envOrInt(0, 1024) },
+            username: { value: "" },
+            tls: { value: false },
+            tlsServername: { value: "" },
+            connectTimeout: { value: 10000, validate: envOrInt(100, 600000) },
+            commandTimeout: { value: 5000, validate: envOrInt(100, 600000) }
+        },
+        credentials: {
+            password: { type: "password" }
+        },
+        paletteLabel: function () { return this._("config.paletteLabel"); },
+        label: function () {
+            if (this.name) { return this.name; }
+            var base = (this.host || "127.0.0.1") + ":" + (this.port || 6379);
+            return this.mode === "cluster" ? "cluster " + base : base;
+        },
+        oneditprepare: function () {
+            var node = this;
+            var tabs = RED.tabs.create({
+                id: "redkern-redis-config-tabs",
+                onchange: function (tab) {
+                    $("#redkern-redis-config-tabs-content").children().hide();
+                    $("#" + tab.id).show();
+                }
+            });
+            tabs.addTab({ id: "redkern-redis-config-tab-general", label: node._("common.tabs.general") });
+            tabs.addTab({ id: "redkern-redis-config-tab-reliability", label: node._("common.tabs.reliability") });
+            tabs.addTab({ id: "redkern-redis-config-tab-advanced", label: node._("common.tabs.advanced") });
+            function toggleMode() {
+                var cluster = $("#node-config-input-mode").val() === "cluster";
+                $(".redkern-redis-config-cluster").toggle(cluster);
+                $(".redkern-redis-config-standalone").toggle(!cluster);
+            }
+            $("#node-config-input-mode").on("change", toggleMode);
+            toggleMode();
+            var target = $("#redkern-redis-config-connections");
+            if (node.id && RED.nodes.node(node.id) && !node.changed) {
+                $.getJSON("redkern/redis/connections?id=" + encodeURIComponent(node.id)).done(function (data) {
+                    var entry = data && data.configs && data.configs[0];
+                    if (!entry) { target.text(node._("config.status.none")); return; }
+                    var c = entry.connections;
+                    target.text(node._("config.status.state") + ": " + entry.state + " · shared " + c.shared + " · blocking " + c.blocking + " · subscriber " + c.subscriber);
+                }).fail(function () {
+                    target.text(node._("config.status.unavailable"));
+                });
+            } else {
+                target.text(node._("config.status.unavailable"));
+            }
+        }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="redkern-redis-config">
+    <div class="form-row">
+        <label for="node-config-input-name"><i class="fa fa-tag"></i> <span data-i18n="common.label.name"></span></label>
+        <input type="text" id="node-config-input-name" data-i18n="[placeholder]common.label.name">
+    </div>
+    <div class="form-row redkern-redis-tabs-row">
+        <ul style="min-width: 500px; margin-bottom: 20px;" id="redkern-redis-config-tabs"></ul>
+    </div>
+    <div id="redkern-redis-config-tabs-content">
+        <div id="redkern-redis-config-tab-general">
+            <div class="form-row">
+                <label for="node-config-input-mode"><i class="fa fa-sitemap"></i> <span data-i18n="config.label.mode"></span></label>
+                <select id="node-config-input-mode" style="width: 70%;">
+                    <option value="standalone" data-i18n="config.mode.standalone"></option>
+                    <option value="cluster" data-i18n="config.mode.cluster"></option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-host"><i class="fa fa-server"></i> <span data-i18n="config.label.host"></span></label>
+                <input type="text" id="node-config-input-host" style="width: 70%;">
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-port"><i class="fa fa-plug"></i> <span data-i18n="config.label.port"></span></label>
+                <input type="text" id="node-config-input-port" style="width: 120px;">
+            </div>
+            <div class="form-row redkern-redis-config-cluster">
+                <label for="node-config-input-clusterNodes"><i class="fa fa-th"></i> <span data-i18n="config.label.clusterNodes"></span></label>
+                <input type="text" id="node-config-input-clusterNodes" style="width: 70%;" data-i18n="[placeholder]config.placeholder.clusterNodes">
+            </div>
+            <div class="form-row redkern-redis-config-standalone">
+                <label for="node-config-input-db"><i class="fa fa-database"></i> <span data-i18n="config.label.db"></span></label>
+                <input type="text" id="node-config-input-db" style="width: 120px;">
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-username"><i class="fa fa-user"></i> <span data-i18n="config.label.username"></span></label>
+                <input type="text" id="node-config-input-username" style="width: 70%;" data-i18n="[placeholder]common.placeholder.optional">
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-password"><i class="fa fa-lock"></i> <span data-i18n="config.label.password"></span></label>
+                <input type="password" id="node-config-input-password" style="width: 70%;" autocomplete="new-password">
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-tls"><i class="fa fa-shield"></i> <span data-i18n="config.label.tls"></span></label>
+                <input type="checkbox" id="node-config-input-tls" style="display: inline-block; width: auto; vertical-align: top;">
+            </div>
+            <div class="form-tips"><span data-i18n="common.tip.env"></span></div>
+            <div class="form-tips redkern-redis-config-cluster" style="margin-top: 8px;"><span data-i18n="config.tip.cluster"></span></div>
+        </div>
+        <div id="redkern-redis-config-tab-reliability" style="display: none;">
+            <div class="form-row">
+                <label for="node-config-input-connectTimeout" style="width: 170px;"><span data-i18n="config.label.connectTimeout"></span></label>
+                <input type="text" id="node-config-input-connectTimeout" style="width: 120px;">
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-commandTimeout" style="width: 170px;"><span data-i18n="config.label.commandTimeout"></span></label>
+                <input type="text" id="node-config-input-commandTimeout" style="width: 120px;">
+            </div>
+            <div class="form-row">
+                <label style="width: 170px;"><span data-i18n="config.label.connections"></span></label>
+                <span id="redkern-redis-config-connections"></span>
+            </div>
+            <div class="form-tips"><span data-i18n="config.tip.connections"></span></div>
+        </div>
+        <div id="redkern-redis-config-tab-advanced" style="display: none;">
+            <div class="form-row">
+                <label for="node-config-input-tlsServername" style="width: 170px;"><span data-i18n="config.label.tlsServername"></span></label>
+                <input type="text" id="node-config-input-tlsServername" style="width: 60%;" data-i18n="[placeholder]config.placeholder.tlsServername">
+            </div>
+        </div>
+    </div>
+</script>
