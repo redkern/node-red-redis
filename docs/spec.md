@@ -30,8 +30,8 @@ Production-палітра Redis для Node-RED: довільні команди
 | Категорія в палітрі | `redkern redis` |
 | HTTP | `/redkern/redis/streams/status` і `/redkern/redis/streams/control` на `httpAdmin`; `/redkern/redis/streams/drain` і `/metrics` на внутрішньому порту 9551 |
 | Права | `redkern.redis.read`, `redkern.redis.write` |
-| settings.js | `redkern``RedisConfigEnabled`, `redkernRedisConfigInternalPort`, `redkernRedisConfigMetricsToken`: kit 1.0.1 читає налаштування з префіксом типу конфіг-ноди (KIT-CFG-6) |
-| Env | `REDKERN_REDIS_``ENABLED`, `REDKERN_REDIS_INTERNAL_PORT` (дефолт 9551), `REDKERN_REDIS_METRICS_TOKEN`; поля конфіг-нод з env лише через `${VAR}` у флоу (KIT-CFG-5). Без REDKERN_REDIS_METRICS_TOKEN роуту /metrics на порту 9551 немає: kit робить токен обов'язковим для токенного роуту, і без цієї умови вимикалася б уся палітра |
+| settings.js | `redkernRedisConfigEnabled`, `redkernRedisConfigInternalPort`, `redkernRedisConfigMetricsToken`, `redkernRedisConfigDrainToken`: kit читає налаштування з префіксом типу конфіг-ноди (KIT-CFG-6) |
+| Env | `REDKERN_REDIS_ENABLED`, `REDKERN_REDIS_INTERNAL_PORT` (дефолт 9551), `REDKERN_REDIS_METRICS_TOKEN`, `REDKERN_REDIS_DRAIN_TOKEN`; поля конфіг-нод з env лише через `${VAR}` у флоу (KIT-CFG-5). Без `REDKERN_REDIS_METRICS_TOKEN` роуту /metrics на порту 9551 немає: kit робить токен обов'язковим для токенного роуту, і без цієї умови вимикалася б уся палітра. З ним листенер стає токенним (KIT-HTTP-6, kit 1.1.0), тож drain вимагає `REDKERN_REDIS_DRAIN_TOKEN`. |
 | Логи | `[redkern:redis]` |
 | CSS / іконки | `redkern-redis-*`, `redkern-redis.svg` |
 
@@ -61,7 +61,7 @@ Production-палітра Redis для Node-RED: довільні команди
 - Дефолтний DLQ: `${streamKey}:dlq`, поля DLQ-запису (`sourceStream`, `sourceGroup`, `sourceId`, `consumer`, `deliveries`, `payload`).
 - Формат полів стріму, який пише stream-out і читає stream-in.
 
-- RDS-MIG-1. **Ручна міграція.** Автоматичного мігратора немає: ноди переносяться руками, флоу за флоу, нова палітра стоїть поруч зі старою. README палітри містить таблицю типів вище і чекліст ручних дій для кожного типу. [рев'ю]
+* RDS-MIG-1. **Ручна міграція.** Автоматичного мігратора немає: ноди переносяться руками, флоу за флоу, нова палітра стоїть поруч зі старою. README палітри містить таблицю типів вище і чекліст ручних дій для кожного типу. [рев'ю]
   - config: нова `redkern-redis-config` поруч зі старою; `cluster: true` стає `mode: cluster` з host:port як єдиним seed; `retryMaxDelay` прибраний; поки працюють обидві палітри, з'єднань удвічі більше, тож перед хвилею перевірити `maxclients`;
   - command: опції `block` немає, блокуючі команди відхиляються (замість них list-in або stream-in); якщо флоу передає `msg.command`, увімкнути `allowMsgCommand` і перевірити, що команди не в denylist, а скрипти задаються командою ноди з текстом у `msg.args`;
   - subscribe у режимі BLPOP/BRPOP: `redkern-redis-list-in` з `prefetch: 0`, щоб темп забору не змінився (RDS-CMD-7); `topic` стає `key`, `mode` стає `direction`;
@@ -108,8 +108,8 @@ Production-палітра Redis для Node-RED: довільні команди
 - RDS-STR-12. `redkern-redis-stream-ack` читає ID з `msg.redkern.redis.id` (рядок або масив для батчу) і з legacy-полів (`msg.streamId`, `msg._streamKey`, `msg._streamGroup`); опціональний XDEL після ACK.
 - RDS-STR-13. `redkern-redis-stream-gc` видаляє неактивні consumers лише з порожнім PEL.
 
-- RDS-STR-14. Метрики палітри живуть у її власному реєстрі, оголошеному один раз через `kit.init({ metrics })` у форматі `text/plain; version=0.0.4` (KIT-MET-1, KIT-MET-2); ноди `redkern-redis-stream-metrics` беруть джерело через `k.metrics.acquire()`. З prometheus-палітрою метрики потрапляють у її `/metrics`, без неї віддаються на порту 9551 з окремим токеном `metrics`.
-- RDS-STR-15. At-least-once допускає повторну доставку: після падіння пода (XAUTOCLAIM) і коли обробка триває довше за `reclaimIdleMs`, бо тоді запис може забрати інший консюмер. Тому `reclaimIdleMs` (дефолт 60 с) має бути більшим за максимальний час обробки, README вимагає ідемпотентної обробки downstream, а повторні доставки рахує метрика `redkern_redis_redeliveries_total`.
+* RDS-STR-14. Метрики палітри живуть у її власному реєстрі, оголошеному один раз через `kit.init({ metrics })` у форматі `text/plain; version=0.0.4` (KIT-MET-1, KIT-MET-2); ноди `redkern-redis-stream-metrics` беруть джерело через `k.metrics.acquire()`. З prometheus-палітрою метрики потрапляють у її `/metrics`, без неї віддаються на порту 9551 з окремим токеном `metrics`.
+* RDS-STR-15. At-least-once допускає повторну доставку: після падіння пода (XAUTOCLAIM) і коли обробка триває довше за `reclaimIdleMs`, бо тоді запис може забрати інший консюмер. Тому `reclaimIdleMs` (дефолт 60 с) має бути більшим за максимальний час обробки, README вимагає ідемпотентної обробки downstream, а повторні доставки рахує метрика `redkern_redis_redeliveries_total`.
 
 ### Контракт msg
 
@@ -124,6 +124,34 @@ Production-палітра Redis для Node-RED: довільні команди
 - RDS-CTL-4. `drain` зупиняє читання нових записів, відправляє вже зарезервовані (утримані паузою, у батчі, повернуті читанням, що було заблоковане на момент drain), проходить recovery власного PEL і чекає на порожній власний PEL з таймаутом `drainTimeoutMs`, після чого віддає `drained: true/false`; нода лишається на паузі. preStop-хук блокується, доки `drain` не відповість, тож README вимагає `terminationGracePeriodSeconds` більшого за `drainTimeoutMs` плюс 10 с бюджету закриття kit (KIT-LIFE-1); інакше Kubernetes вб'є под посеред drain.
 - RDS-CTL-5. Помилки HTTP-роутів за KIT-HTTP-4: невалідний запит дає `PublicError` 400 з кодом, решта дає 500 лише з `{ error: 'Internal error', id }`, а повний текст з тим самим `id` іде в лог (функції `safeError` у kit 1.0.1 немає). Помилки для флоу маскуються kit у `done(err)` і `errorOutput` (KIT-SEC-3, KIT-LOG-4).
 
+### Стан при старті процесу і dev-режим (1.1.0)
+
+RDS-CTL-6..14 не входять у 1.0.0: в 1.0.0 стан задає лише `startPaused` на stream-in (RDS-STR-11) і команди RDS-CTL-1 для stream-in. Вимоги нижче реалізуються в 1.1.0.
+
+Команди `pause` і `resume` (RDS-CTL-1) працюють під час роботи, але при старті процесу стан консюмерів завжди визначає env. Це потрібно для персональних dev-інстансів Node-RED: там консюмери за замовчуванням на паузі, розробник вмикає лише те, що тестує, а забуте вмикання гасне само.
+
+- RDS-CTL-6. **Стан при старті процесу** для `redkern-redis-stream-in`, `redkern-redis-list-in` і `redkern-redis-stream-claim` береться з `REDKERN_REDIS_CONSUMERS_AUTOSTART` (`true` / `false`). Без змінної ноди стартують, щоб забута змінна в prod не зупинила обробку. Env застосовується лише тоді, коли нода з цим id створюється в процесі вперше.
+- RDS-CTL-7. **Стан pause / resume живе в Map у замиканні палітри** (KIT-ARCH-2) за id ноди: переживає redeploy, не переживає рестарт процесу і ніколи не пишеться у `flows.json`, credentials чи context. Пауза після `drain` (RDS-CTL-4) зберігається так само.
+- RDS-CTL-8. **Охоплення команд**: `pause` / `resume` з RDS-CTL-1 поширюються на `redkern-redis-list-in` і `redkern-redis-stream-claim`; на нодах `stream-in` і `list-in` у редакторі є кнопка, що викликає роут з правом `redkern.redis.write`.
+- RDS-CTL-9. **Пауза `stream-in`**: без нових `XREADGROUP`, pending entries лишаються в групі. **Пауза `stream-claim`**: без `XAUTOCLAIM`, щоб пауза одного пода не перехоплювала чужі повідомлення.
+- RDS-CTL-10. **Пауза `list-in`**: без нових `BLPOP` / `BRPOP`; заблокований виклик переривається через `CLIENT UNBLOCK` для `blocking`-з'єднання ноди (RDS-CON-2). Елемент, який повернув перерваний чи паралельний виклик, завжди віддається у флоу: pop деструктивний, повернути елемент нікуди.
+- RDS-CTL-11. **Автопауза**: `REDKERN_REDIS_AUTOPAUSE_MIN` (без змінної вимкнена, задається лише на dev). Таймер стартує при `resume`; коли він спливає, виконується `pause`.
+- RDS-CTL-12. **Без наздоганяння пропущеного**: при `REDKERN_REDIS_SKIP_BACKLOG_ON_START=true` перший `resume` після паузи для `stream-in` робить `XGROUP SETID <group> $`. Лише для приватних груп (dev-префікс), на спільних групах не вмикати. Для `list-in` не застосовується: накопичене в приватному списку це власні тестові дані.
+- RDS-CTL-13. **Статус і аудит**: сірий `paused (env)`, сірий `paused`, сірий `auto-paused`, зелений `running` з часом до автопаузи; рядок у лозі на кожну зміну з джерелом (`env`, `control`, `button`, `autopause`); метрики `redkern_redis_consumer_enabled{node}` і `redkern_redis_consumer_state_changes_total{node,source}`.
+- RDS-CTL-14. Стан діє лише на процес, що отримав команду. README прямо зазначає, що на multi-pod розгортанні це не kill switch для всього сервісу.
+
+### Повернення з DLQ (1.2.0)
+
+- RDS-DLQ-1. Нода `redkern-redis-stream-redrive` і роут `POST /redkern/redis/redrive` на `httpAdmin` з правом `redkern.redis.data` (KIT-AUTH-5) повертають записи з DLQ у `sourceStream`. Діапазон задається ID або часом (`XRANGE`), фільтр за `sourceGroup` і `consumer`, швидкість обмежує `ratePerSec` (дефолт 100). `dryRun` повертає кількість і метадані перших 20 записів без `payload`.
+- RDS-DLQ-2. Повернення атомарне: `XADD` у джерело і `XDEL` з DLQ в одному `MULTI` (джерело і DLQ уже в одному слоті, RDS-STR-7). Новий запис несе оригінальні поля і лічильник `redrives`; запис понад `maxRedrives` (дефолт 3) лишається в DLQ і рахується як пропущений.
+- RDS-DLQ-3. Кожен запуск пише аудиторський рядок у лог (хто, коли, діапазон, фільтр, скільки повернуто і пропущено) і метрику `redkern_redis_redriven_total{stream, result}`. Повернений запис це ще одна доставка at-least-once (RDS-STR-15).
+- RDS-DLQ-4. Репо містить у `observability/` Grafana-дашборд і `PrometheusRule` з алертами: ріст DLQ, PEL біля `maxPending`, консюмер на паузі після rollout, ріст `redkern_redis_redeliveries_total`.
+
+### Кореляція (1.3.0)
+
+- RDS-TRC-1. `stream-out` робить `k.trace.inject` у поля запису (`traceparent`, `redkern-started-at`), `stream-in` робить `k.trace.extract` (KIT-TRC-2, KIT-TRC-3); DLQ і redrive зберігають ці поля.
+- RDS-TRC-2. На `stream-out` inject за замовчуванням вимкнений (`traceFields: false`), бо формат полів стріму не змінюється під час міграції; вмикається окремою зміною разом із переходом зі списків на Streams.
+
 ## 8. Структура репо
 
 ```
@@ -132,14 +160,17 @@ lib/inflight.js  lib/dlq.js  lib/control.js  lib/denylist.js  lib/palette.js
 nodes/redkern-redis.js   єдиний node set: замикання палітри (KIT-ARCH-2)
 nodes/<одна нода>.js  editor/<одна нода>.html
 nodes/redkern-redis.html, nodes/locales/en-US/redkern-redis.*   збираються з джерел
+observability/   Grafana-дашборд і PrometheusRule (з 1.2.0, RDS-DLQ-4)
 examples/  test/unit/  test/integration/  docs/spec.md
 ```
 
-- Вся логіка в `lib/`, тестується без Node-RED. Ноди лише маплять config і msg.
-- Одна нода на файл (nodes/<тип>.js і editor/<тип>.html). Пакет реєструє один node set redkern-redis, бо стан палітри живе в замиканні module.exports = function (RED) (KIT-ARCH-2), а Node-RED дає кожному node set окремий об'єкт RED; nodes/redkern-redis.html, каталог і довідка locales/en-US/redkern-redis.* збираються з джерел, і CI падає, якщо вони застаріли. Код редактора у `.html` загорнутий в IIFE.
-- Коментарі та повідомлення англійською.
-- Node.js >= 22, Node-RED >= 4.1.0 < 6.0.0, `files`-whitelist, CI і release як у kit.
-- RDS-UI-1. **Вигляд у редакторі** за стандартом kit (розділ 8.1): кораловий колір палітри, мотив "стопка дисків" з окремим знаком дії для кожної з 12 нод, `paletteLabel` і підписи за замовчуванням з каталогу. Підписи портів кожної ноди (зокрема виходів `scan`, `stream-in` і `stream-claim`) задаються в message catalog за кількістю портів з цього ТЗ; порт помилок з `errorOutput` останній і підписаний `error`. Діалоги `redkern-redis-config` і `stream-in` мають вкладки General, Reliability, Advanced. [CI]
+- RDS-NR-1. Пакет відповідає всім правилам [Node-RED Creating Nodes](https://nodered.org/docs/creating-nodes/) за переліком KIT-NR-1..17 стандарту kit (розділ 8.2); `npx node-red-dev validate` у CI без помилок (CI перевіряє, що scorecard повний: усі перевірки P01, P03-P08, N01, N02, D01-D03 є і пройдені) до публікації 1.0.0 в npm, після 1.0.0 пакет додано у Flow Library. Відступи фіксуються в цьому ТЗ з причиною (KIT-NR-17). Відступ: D03 (залежність не найновіша) допускається лише для ioredis, бо його версія закріплена (RDS-CON-2) і оновлюється тільки окремим протестованим релізом. Тека `observability/` з дашбордом і алертами (з 1.2.0) лежить поруч із `examples/`, а не в ній (KIT-NR-13). [CI]
+
+* Вся логіка в `lib/`, тестується без Node-RED. Ноди лише маплять config і msg.
+* Одна нода на файл (nodes/<тип>.js і editor/<тип>.html). Пакет реєструє один node set redkern-redis, бо стан палітри живе в замиканні module.exports = function (RED) (KIT-ARCH-2), а Node-RED дає кожному node set окремий об'єкт RED; nodes/redkern-redis.html, каталог і довідка locales/en-US/redkern-redis.* збираються з джерел, і CI падає, якщо вони застаріли. Код редактора у `.html` загорнутий в IIFE.
+* Коментарі та повідомлення англійською.
+* Node.js >= 22, Node-RED >= 4.1.0 < 6.0.0, `files`-whitelist, CI і release як у kit.
+* RDS-UI-1. **Вигляд у редакторі** за стандартом kit (розділ 8.1): кораловий колір палітри, мотив "стопка дисків" з окремим знаком дії для кожної з 12 нод, `paletteLabel` і підписи за замовчуванням з каталогу. Підписи портів кожної ноди (зокрема виходів `scan`, `stream-in` і `stream-claim`) задаються в message catalog за кількістю портів з цього ТЗ; порт помилок з `errorOutput` останній і підписаний `error`. Діалоги `redkern-redis-config` і `stream-in` мають вкладки General, Reliability, Advanced. [CI]
 
 - RDS-UI-2. Порти нод за таблицею нижче; порт `error` з’являється лише з `errorOutput` і завжди останній. check-editor звіряє кількість підписів із портами. [CI]
 
@@ -172,6 +203,12 @@ examples/  test/unit/  test/integration/  docs/spec.md
 - stream-ack з масивом ID у батчі ACK-ає всі записи одним викликом.
 - У флоу kafka → redis stream-out → stream-in обидва ключі `msg.redkern.kafka` і `msg.redkern.redis` присутні.
 
+Для 1.1.0 (RDS-CTL-6..14):
+
+- RDS-CTL-6..14: при `REDKERN_REDIS_CONSUMERS_AUTOSTART=false` `stream-in`, `list-in` і `stream-claim` після рестарту процесу на паузі незалежно від стану до рестарту, а без змінної стартують; стан після `resume` переживає redeploy; автопауза спрацьовує за `REDKERN_REDIS_AUTOPAUSE_MIN`.
+- `pause` під час заблокованого `BLPOP` не губить знятий елемент; на паузі немає ні `XREADGROUP`, ні `XAUTOCLAIM`, ні `BLPOP`.
+- Зі `REDKERN_REDIS_SKIP_BACKLOG_ON_START=true` `stream-in` після паузи не віддає записів, доданих під час паузи.
+
 ## 10. Поза обсягом
 
 - Кешування, Lua-бібліотеки, RedisJSON/Search.
@@ -184,8 +221,11 @@ examples/  test/unit/  test/integration/  docs/spec.md
 | 1.0.0-alpha.1 | config, command, multi, scan, subscribe, list-in на kit |
 | 1.0.0-alpha.2 | stream-in/out/ack з курсором і in-flight |
 | 1.0.0-beta.1 | DLQ, claim, gc, metrics, control |
-| 1.0.0-rc.1 | load-тест пройдений, README містить чекліст ручної міграції для всіх типів |
-| 1.0.0 | перший продакшн-реліз |
+| 1.0.0-rc.1 | load-тест пройдений, README містить чекліст ручної міграції для всіх типів (RDS-MIG-1) |
+| 1.0.0 | перший продакшн-реліз; перед публікацією в npm CI запускає npx node-red-dev validate (RDS-NR-1) |
+| 1.1.0 | стан консюмерів при старті і dev-режим RDS-CTL-6..14: CONSUMERS_AUTOSTART, pause/resume для list-in і stream-claim, автопауза, пропуск backlog, метрики стану |
+| 1.2.0 | redrive з DLQ і observability/ з дашбордом та алертами RDS-DLQ-1..4 |
+| 1.3.0 | кореляція RDS-TRC-1..2 (kit 1.1.0) |
 
 У npm публікується лише 1.0.0 і вище; pre-release виходять як GitHub Release з tarball (стандарт kit, розділ 8).
 
@@ -195,3 +235,4 @@ examples/  test/unit/  test/integration/  docs/spec.md
 
 - HTTP control API лишається; preStop через `exec` на `127.0.0.1` (RDS-CTL-3), роути на `httpAdmin` з правами для ручного керування;
 - черги на списках винесені в перехідну ноду `redkern-redis-list-in` з незмінною семантикою BLPOP/BRPOP (RDS-CMD-7); `subscribe` лише для Pub/Sub. Перехід зі списків на Streams виконується після переїзду флоу на redkern, окремими змінами.
+- міграція ручна, без migrate і дескриптора (RDS-MIG-1); RDS-CTL-6..14, RDS-DLQ-1..4 і RDS-TRC-1..2 винесені з 1.0.0 у версії 1.1.0, 1.2.0 і 1.3.0.

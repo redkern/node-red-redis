@@ -53,12 +53,13 @@ async function commandThroughput(client) {
   node.receive({ args: ['warmup'] });
   await until(() => count('ok') === 1, 30000, 'command ready');
   const base = count('ok');
-  const rate = 10000;
+  const requiredRate = 10000;
+  const offeredRate = 10500;
   let sent = 0;
   let maxBacklog = 0;
-  const started = Date.now();
-  while (Date.now() - started < SECONDS * 1000) {
-    const due = Math.floor(((Date.now() - started) / 1000) * rate);
+  const started = performance.now();
+  while (performance.now() - started < SECONDS * 1000) {
+    const due = Math.floor(((performance.now() - started) / 1000) * offeredRate);
     while (sent < due) {
       node.receive({ args: ['counter'] });
       sent += 1;
@@ -66,13 +67,22 @@ async function commandThroughput(client) {
     maxBacklog = Math.max(maxBacklog, sent - (count('ok') - base) - count('err'));
     await new Promise((resolve) => setImmediate(resolve));
   }
-  const elapsed = (Date.now() - started) / 1000;
+  const elapsed = (performance.now() - started) / 1000;
+  const completed = count('ok') - base;
   await until(() => count('ok') - base + count('err') === sent, 60000, 'all commands done');
-  const result = { sent, ratePerSecond: Math.round(sent / elapsed), failed: count('err'), maxBacklog };
+  const result = {
+    sent,
+    completedDuringLoad: completed,
+    elapsedSeconds: elapsed,
+    offeredPerSecond: sent / elapsed,
+    completedPerSecond: completed / elapsed,
+    failed: count('err'),
+    maxBacklog
+  };
   console.log('command throughput', JSON.stringify(result));
   assert.equal(result.failed, 0, 'no INPUT_QUEUE_FULL or Redis errors');
   assert.equal(Number(await client.get('counter')), sent);
-  assert.ok(result.ratePerSecond >= 9500, 'about 10 000 msg/s offered');
+  assert.ok(result.completedPerSecond >= requiredRate, 'at least 10 000 commands/s completed during the load');
   assert.ok(maxBacklog < 1000, 'the queue does not grow');
 }
 

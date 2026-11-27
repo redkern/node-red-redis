@@ -17,7 +17,7 @@ A Trusted Publisher can only be added to a package that already exists. For the 
 
 1. `@redkern/node-red-kit@1.1.0` is already on npm; the lockfile resolves that registry artifact.
 2. Confirm `package.json`, `package-lock.json` and `CHANGELOG.md` carry the same stable version and the changelog entry is dated (`## 1.0.0 - YYYY-MM-DD`).
-3. Push the reviewed commit to `main` and wait for CI: Node.js 22/24 x Node-RED 4.1/5, verify (generated editor, catalogs, help and icons up to date, lint, editor, requirement IDs, unit tests), pack check and Redis integration.
+3. Push the reviewed commit to `main` and wait for CI: Node.js 22/24 x Node-RED 4.1/5, verify (generated editor, catalogs, help and icons up to date, lint, editor, requirement IDs, unit tests), pack check, Redis integration and the Flow Library validation (`node-red-dev validate`, gated by `scripts/check-scorecard.js`).
 4. Run the acceptance suites of spec section 9 against the release commit and keep their output with the release review: `npm run test:load`, `scripts/start-chaos-cluster.sh && npm run test:chaos`, `sudo -E npm run test:pods`, `npm run test:soak -- --minutes 15`.
 5. Create and push the matching tag, for example `v1.0.0`. The release workflow repeats the gates, runs a dependency audit and a smoke install of the packed tarball, then publishes through OIDC with provenance and creates the GitHub release.
 6. Verify: `npm view @redkern/node-red-redis@1.0.0 dist.attestations`, then `npm audit signatures` in a project that installs it, and install the package in a clean Node-RED user directory.

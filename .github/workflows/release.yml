@@ -56,6 +56,9 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run verify
       - run: npm run check:pack
+      # RDS-NR-1: Flow Library validation must pass before publishing.
+      - run: npx --yes node-red-dev@0.1.6 validate -p . -o "$RUNNER_TEMP/scorecard.json"
+      - run: node scripts/check-scorecard.js "$RUNNER_TEMP/scorecard.json"
       - run: npm run test:integration
         env:
           REDIS_PORT: '6390'

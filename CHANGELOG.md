@@ -19,4 +19,5 @@ First production release of the palette that replaces `@yroshcha/node-red-contri
 - list in returns an element popped while the node closes to the list; backpressure reconcile keeps newer in-flight IDs; NOPERM and WRONGTYPE give a red status.
 - Built and tested on `@redkern/node-red-kit` 1.1.0. Its internal listener is loopback-only or token-only (KIT-HTTP-6): with `REDKERN_REDIS_METRICS_TOKEN` the drain route now needs `REDKERN_REDIS_DRAIN_TOKEN`, otherwise it is off with a warning. Admin routes answer 503 `ADMIN_AUTH_REQUIRED` without `adminAuth`.
 - TLS always verifies the server certificate; a rejected certificate gives a red auth status.
+- The streams example also shows stream-claim, so every node has an example (Flow Library check N02).
 - Lint for forbidden patterns, requirement ID check against `docs/spec.md`, network fault tests through a TCP proxy, cluster, TLS, TLS cluster, fuzz and ACL tests, acceptance load tests, a cluster chaos test (failover, master kill, slot migration), a multi-pod test (SIGKILL, preStop drain, SIGTERM) and a soak test with redeploys.

@@ -33,6 +33,19 @@ jobs:
       - run: npm run test:integration
         env:
           REDIS_PORT: '6390'
+  node-red-dev:
+    # RDS-NR-1: Node-RED Flow Library validation. node-red-dev exits with 0
+    # even when checks fail, so check-scorecard.js gates on the scorecard.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx --yes node-red-dev@0.1.6 validate -p . -o "$RUNNER_TEMP/scorecard.json"
+      - run: node scripts/check-scorecard.js "$RUNNER_TEMP/scorecard.json"
   servers:
     # Redis 6.2 is the oldest supported server (XAUTOCLAIM, exclusive XPENDING
     # ranges); Valkey is what ElastiCache and MemoryDB run today.
