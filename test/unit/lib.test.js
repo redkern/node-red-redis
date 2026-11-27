@@ -28,6 +28,16 @@ describe('denylist', () => {
     assert.doesNotThrow(() => checkCommand(toTokens('FLUSHDB'), { denylist: false }));
   });
 
+  it('RDS-CMD-3 matches default subcommands and the current extra denylist', () => {
+    const extraDenied = ['client id'];
+    assert.throws(() => checkCommand(toTokens('script flush')), { code: 'COMMAND_DENIED', message: 'SCRIPT FLUSH is in the command denylist' });
+    assert.doesNotThrow(() => checkCommand(toTokens('SCRIPT LOAD')));
+    assert.throws(() => checkCommand(toTokens('CLIENT ID'), { extraDenied }), { code: 'COMMAND_DENIED', message: 'CLIENT ID is in the command denylist' });
+    extraDenied[0] = 'get';
+    assert.doesNotThrow(() => checkCommand(toTokens('CLIENT ID'), { extraDenied }));
+    assert.throws(() => checkCommand(toTokens('GET', ['key']), { extraDenied }), { code: 'COMMAND_DENIED' });
+  });
+
   it('RDS-CMD-3 scripts from msg cannot bypass the denylist; a configured script stays allowed', () => {
     for (const command of ['EVAL', 'evalsha', 'EVAL_RO', 'FCALL', 'FUNCTION', 'SCRIPT']) {
       assert.throws(() => checkCommand(toTokens(command, ["return redis.call('FLUSHALL')", 0]), { fromMsg: true }), { code: 'COMMAND_DENIED' });

@@ -61,7 +61,7 @@
     "test:soak": "node --expose-gc --unhandled-rejections=strict scripts/soak-test.js"
   },
   "dependencies": {
-    "@redkern/node-red-kit": "^1.1.0",
+    "@redkern/node-red-kit": "^1.3.0",
     "ioredis": "6.0.0"
   },
   "devDependencies": {
